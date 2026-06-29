@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  laravel-tests:
+    name: Laravel Quality Gate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ligue1
+          POSTGRES_USER: laravel
+          POSTGRES_PASSWORD: laravel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U laravel -d ligue1"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: ligue1
+      DB_USERNAME: laravel
+      DB_PASSWORD: laravel
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, bcmath, intl, gd, exif, pcntl, pdo_pgsql, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer files
+        run: composer validate --strict
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate --no-interaction
+
+      - name: Wait for PostgreSQL
+        run: |
+          php -r '
+            $retries = 60;
+            $sleep = 2;
+            $host = getenv("DB_HOST");
+            $port = getenv("DB_PORT");
+            $database = getenv("DB_DATABASE");
+            $username = getenv("DB_USERNAME");
+            $password = getenv("DB_PASSWORD");
+
+            for ($attempt = 1; $attempt <= $retries; $attempt++) {
+                try {
+                    new PDO(
+                        "pgsql:host={$host};port={$port};dbname={$database}",
+                        $username,
+                        $password,
+                        [PDO::ATTR_TIMEOUT => 3]
+                    );
+                    echo "PostgreSQL is ready.\n";
+                    exit(0);
+                } catch (Throwable $exception) {
+                    echo "Waiting for PostgreSQL ({$attempt}/{$retries})...\n";
+                    sleep($sleep);
+                }
+            }
+
+            fwrite(STDERR, "PostgreSQL did not become ready in time.\n");
+            exit(1);
+          '
+
+      - name: Run database migrations
+        run: php artisan migrate --force --no-interaction
+
+      - name: Run Laravel Pint
+        run: ./vendor/bin/pint --test
+
+      - name: Run PHPStan
+        run: ./vendor/bin/phpstan analyse --no-progress
+
+      - name: Run PHPUnit
+        run: php artisan test --no-interaction

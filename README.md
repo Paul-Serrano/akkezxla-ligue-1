@@ -48,7 +48,7 @@ What happens automatically on first startup:
 
 Development endpoints:
 
-- API: http://localhost:8000
+- API: http://localhost
 - Adminer: http://localhost:8080
 - PostgreSQL host inside Docker network: postgres
 

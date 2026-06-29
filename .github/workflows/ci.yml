@@ -108,7 +108,7 @@ jobs:
         run: ./vendor/bin/pint --test
 
       - name: Run PHPStan
-        run: ./vendor/bin/phpstan analyse --no-progress
+        run: ./vendor/bin/phpstan analyse app config database routes tests --no-progress --memory-limit=1G
 
       - name: Run PHPUnit
-        run: php artisan test --no-interaction
+        run: php artisan test

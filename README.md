@@ -48,9 +48,17 @@ What happens automatically on first startup:
 
 Development endpoints:
 
-- API: http://localhost
+- API: http://localhost:8000
 - Adminer: http://localhost:8080
 - PostgreSQL host inside Docker network: postgres
+
+Adminer login values:
+
+- System: PostgreSQL
+- Server: postgres
+- Username: laravel
+- Password: laravel
+- Database: ligue1
 
 ## Stop the Project
 

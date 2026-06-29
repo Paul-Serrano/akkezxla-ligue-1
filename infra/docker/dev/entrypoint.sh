@@ -3,6 +3,29 @@ set -eu
 
 APP_ROOT="/var/www"
 
+run_with_retry() {
+    max_retries="$1"
+    sleep_seconds="$2"
+    shift 2
+
+    attempt=1
+    while [ "$attempt" -le "$max_retries" ]; do
+        if "$@"; then
+            return 0
+        fi
+
+        echo "Command failed (attempt ${attempt}/${max_retries})."
+        if [ "$attempt" -ge "$max_retries" ]; then
+            return 1
+        fi
+
+        attempt=$((attempt + 1))
+        sleep "$sleep_seconds"
+    done
+
+    return 1
+}
+
 set_env_var() {
     key="$1"
     value="$2"
@@ -59,10 +82,10 @@ cd "$APP_ROOT"
 
 if [ -z "$(find . -mindepth 1 -maxdepth 1 -not -name '.gitkeep' -print -quit)" ]; then
     echo "No Laravel project found in ${APP_ROOT}. Creating a fresh Laravel application..."
-    composer create-project laravel/laravel . --no-interaction --prefer-dist
+    run_with_retry 3 3 composer create-project laravel/laravel . --no-interaction
 else
     echo "Existing Laravel project detected. Installing Composer dependencies..."
-    composer install --no-interaction --prefer-dist
+    run_with_retry 3 3 composer install --no-interaction
 fi
 
 if [ ! -f .env ]; then

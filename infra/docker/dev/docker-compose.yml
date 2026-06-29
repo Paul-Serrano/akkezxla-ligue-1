@@ -11,6 +11,8 @@ services:
     volumes:
       - ../../../backend:/var/www
     environment:
+      HOME: ${HOME_DIR:-/tmp}
+      COMPOSER_HOME: ${COMPOSER_HOME:-/tmp/composer}
       APP_ENV: ${APP_ENV:-local}
       APP_DEBUG: ${APP_DEBUG:-true}
       APP_URL: ${APP_URL:-http://localhost}
@@ -33,7 +35,7 @@ services:
     depends_on:
       - app
     ports:
-      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_PORT:-8000}:80"
     volumes:
       - ../../../backend:/var/www:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
